@@ -1,0 +1,77 @@
+{
+  "name": "Error alert",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "fda3ccdc-8e15-477a-af67-f9e4f681fc06",
+      "name": "Error trigger"
+    },
+    {
+      "parameters": {
+        "chatId": "__WF_TELEGRAM_ALERT_CHAT_ID__",
+        "text": "=⚠️ [n8n] {{ $json.workflow.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }} 运行出错\n\n{{ String($json.execution?.error?.message ?? $json.trigger?.error?.message ?? '未知错误').slice(0, 300).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}\n\n{{ ($json.execution?.url ?? '').replace(/&/g, '&amp;') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "69d4b538-56cd-43d2-8c4d-99ede565e0f9",
+      "name": "Send alert",
+      "webhookId": "65f4cab3-46bc-434b-8032-c89c16c3e917",
+      "credentials": {
+        "telegramApi": {
+          "id": "__WF_TELEGRAM_ALERT_CREDENTIAL_ID__",
+          "name": "alert_bot"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Send alert": {
+      "main": [
+        []
+      ]
+    },
+    "Error trigger": {
+      "main": [
+        [
+          {
+            "node": "Send alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e959be07-a278-488d-a347-00dfa3e87458",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25193dc7322b69a268cb3a5e74f6c08da8936804e1ad34544dbbd72d5f030444"
+  },
+  "nodeGroups": [],
+  "id": "cZNTVyM162Ph1rp5",
+  "tags": []
+}

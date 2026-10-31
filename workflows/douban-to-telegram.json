@@ -1,0 +1,242 @@
+{
+  "name": "Douban to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 30,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "feedUrl": "https://www.douban.com/feed/people/__WF_DOUBAN_USER_ID__/interests"
+      },
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -96
+      ],
+      "id": "33f76073-6767-447d-a37a-15bcf4b32a84",
+      "name": "Douban RSS"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TYPES = {\n  movie: { linkIncludes: 'movie.douban.com',     icon: '🎬', tag: '#movie' },\n  book:  { linkIncludes: 'book.douban.com',      icon: '📖', tag: '#book' },\n  game:  { linkIncludes: 'www.douban.com/game/', icon: '🎮', tag: '#game' },\n};\nconst TITLE_RE = /^(?:最近)?(在看|看过|在读|读过|在玩|玩过)(.+)$/;\nconst SCORE_BY_RATING = { 很差: 1, 较差: 2, 还行: 3, 推荐: 4, 力荐: 5 };\n\nconst decodeHtml = (s) => s\n  .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\")\n  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\nconst escapeHtml = (s) => s\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst results = [];\n\nfor (const [index, item] of $input.all().entries()) {\n  const { title = '', link = '', content = '' } = item.json;\n\n  const type = Object.keys(TYPES).find((k) => link.includes(TYPES[k].linkIncludes));\n  if (!type) continue;\n  const typeInfo = TYPES[type];\n\n  const [, status, rawName] = title.match(TITLE_RE) ?? [];\n  if (!status) continue;\n  const name = rawName.trim();\n\n  const ratingText = content.match(/<p>推荐:\\s*([^<]+?)\\s*<\\/p>/)?.[1];\n  const score = SCORE_BY_RATING[ratingText] ?? 0;\n  const comment = decodeHtml(content.match(/<p>备注:\\s*([\\s\\S]*?)\\s*<\\/p>/)?.[1] ?? '').trim();\n  const cover = content.match(/<img src=\"([^\"]+)\"/)?.[1]\n    ?.replace('/photo/s_ratio_poster/', '/photo/m_ratio_poster/')\n    .replace('/subject/s/', '/subject/m/')\n    .replace(/\\/[sml]pic\\/(s\\d+\\.jpg)/, '/view/subject/m/public/$1') ?? '';\n\n  const header = `${typeInfo.icon} ${escapeHtml(status + name)} ${typeInfo.tag} #douban`;\n  const review = [\n    score ? `评分：${'★'.repeat(score)}${'☆'.repeat(5 - score)}` : '',\n    escapeHtml(comment),\n  ].filter(Boolean).join('\\n');\n  const message = [header, review, link].filter(Boolean).join('\\n\\n');\n\n  results.push({\n    json: { type, status, name, score, ratingText, comment, link, cover, message },\n    pairedItem: { item: index },\n  });\n}\n\nreturn results.reverse();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        -192
+      ],
+      "id": "2f983542-b2e1-4570-b157-d182d63c04f3",
+      "name": "Parse Douban"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -288
+      ],
+      "id": "8a3f343c-56d6-4a6e-997b-9ec78c3b4c4d",
+      "name": "Test run"
+    },
+    {
+      "parameters": {
+        "url": "https://www.douban.com/feed/people/__WF_DOUBAN_USER_ID__/interests",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        -288
+      ],
+      "id": "c42d6873-4a20-415b-b48e-d339978f2610",
+      "name": "Douban RSS (test)"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.cover }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Referer",
+              "value": "https://www.douban.com/"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        688,
+        -192
+      ],
+      "id": "d94005a7-a0ac-45f8-85c8-b5f33421fec1",
+      "name": "Download cover",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "__WF_TELEGRAM_FEED_CHAT_ID__",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "={{ $('Parse Douban').item.json.message }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        -288
+      ],
+      "id": "9ec64e40-5801-400b-a969-97f84704729a",
+      "name": "Send photo",
+      "webhookId": "aeac7728-de3b-4c08-b90c-10554b1f9c8b",
+      "credentials": {
+        "telegramApi": {
+          "id": "__WF_TELEGRAM_PUSH_CREDENTIAL_ID__",
+          "name": "push_bot"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "chatId": "__WF_TELEGRAM_FEED_CHAT_ID__",
+        "text": "={{ $('Parse Douban').item.json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        -96
+      ],
+      "id": "f33cc700-1389-4b26-b8cd-11d9eb4185ab",
+      "name": "Send text",
+      "webhookId": "40645fe1-349c-416c-a70e-4876ea8df9d8",
+      "credentials": {
+        "telegramApi": {
+          "id": "__WF_TELEGRAM_PUSH_CREDENTIAL_ID__",
+          "name": "push_bot"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Douban RSS": {
+      "main": [
+        [
+          {
+            "node": "Parse Douban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Douban": {
+      "main": [
+        [
+          {
+            "node": "Download cover",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test run": {
+      "main": [
+        [
+          {
+            "node": "Douban RSS (test)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Douban RSS (test)": {
+      "main": [
+        [
+          {
+            "node": "Parse Douban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download cover": {
+      "main": [
+        [
+          {
+            "node": "Send photo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send photo": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "cZNTVyM162Ph1rp5"
+  },
+  "versionId": "9e77f2e5-8ca8-44ae-90f6-289a84bedf93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25193dc7322b69a268cb3a5e74f6c08da8936804e1ad34544dbbd72d5f030444"
+  },
+  "nodeGroups": [],
+  "id": "oJK1wCgyEaYhN1Gc",
+  "tags": []
+}
