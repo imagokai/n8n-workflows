@@ -1,0 +1,137 @@
+{
+  "name": "Blog to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "chatId": "__WF_TELEGRAM_FEED_CHAT_ID__",
+        "text": "=📝 {{ $json.title }} #blog\n\n{{ $json.link }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        -32
+      ],
+      "id": "144321bc-6791-426d-bcb6-5e94727f5040",
+      "name": "Send message",
+      "webhookId": "e4bc56f1-6fb7-4e7f-b836-7bf8f586b037",
+      "credentials": {
+        "telegramApi": {
+          "id": "__WF_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram bot"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        -128
+      ],
+      "id": "51b290cb-6a4c-4045-8cf8-95de692eb6cf",
+      "name": "Test"
+    },
+    {
+      "parameters": {
+        "url": "__WF_BLOG_FEED_URL__",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        -128
+      ],
+      "id": "99ec93b9-5f74-42f3-84b4-f03c67250ebb",
+      "name": "RSS read",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 30,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "feedUrl": "__WF_BLOG_FEED_URL__"
+      },
+      "type": "n8n-nodes-base.rssFeedReadTrigger",
+      "typeVersion": 1,
+      "position": [
+        208,
+        64
+      ],
+      "id": "fba94357-5405-4f4c-ac24-c4edfe5c43f5",
+      "name": "RSS feed"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Test": {
+      "main": [
+        [
+          {
+            "node": "RSS read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS read": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS feed": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "cZNTVyM162Ph1rp5",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "7b2c81aa-9fa1-47f2-8a1c-576f93119500",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25193dc7322b69a268cb3a5e74f6c08da8936804e1ad34544dbbd72d5f030444"
+  },
+  "nodeGroups": [],
+  "id": "I46LS3kdS4dhcjfo",
+  "tags": []
+}

@@ -1,0 +1,165 @@
+{
+  "name": "YouTube to Telegram",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -176
+      ],
+      "id": "edfa1323-eafe-42c6-8158-76f3417da381",
+      "name": "Test"
+    },
+    {
+      "parameters": {
+        "resource": "playlistItem",
+        "operation": "getAll",
+        "playlistId": "__WF_YOUTUBE_PLAYLIST_ID__",
+        "limit": 10,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        256,
+        0
+      ],
+      "id": "b1212c5a-4e2e-4d60-917c-657040ed3100",
+      "name": "Get list",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "__WF_YOUTUBE_CREDENTIAL_ID__",
+          "name": "YouTube account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "chatId": "__WF_TELEGRAM_FEED_CHAT_ID__",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        0
+      ],
+      "id": "cd51ea18-9b50-4adc-8d94-f5dbaf094f00",
+      "name": "Send message",
+      "webhookId": "f3f2b197-c172-4bc9-a3ed-9057da9be735",
+      "credentials": {
+        "telegramApi": {
+          "id": "__WF_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $getWorkflowStaticData('global');\n\nconst videos = playlistVideos($input.all());\n\n// 空列表、或每条都没有 videoId：不推进度\nif (videos.length === 0) return [];\n\nconst pending = pendingVideos(videos, state.youtubeLikesLastVideoId);\nstate.youtubeLikesLastVideoId = videos[0].json.videoId;\n\n// 从旧到新发送，频道里最后一条是最新点赞\nreturn pending.reverse();\n\nfunction playlistVideos(items) {\n  const positionOf = (item) => {\n    const value = item?.json?.snippet?.position;\n    const position = typeof value === 'number' ? value : Number.parseInt(value, 10);\n    return Number.isFinite(position) ? position : Number.POSITIVE_INFINITY;\n  };\n\n  const seen = new Set();\n\n  return items\n    .slice()\n    .sort((a, b) => positionOf(a) - positionOf(b))\n    .map(toVideo)\n    .filter((item) => {\n      const videoId = item?.json?.videoId;\n      if (!videoId || seen.has(videoId)) return false;\n      seen.add(videoId);\n      return true;\n    });\n}\n\nfunction pendingVideos(videos, lastId) {\n  const cursor = typeof lastId === 'string' && lastId ? lastId : undefined;\n\n  // 第一次只记下最新一条，不推送已有视频\n  if (!cursor) return [];\n\n  const cursorIndex = videos.findIndex((item) => item.json.videoId === cursor);\n\n  // 进度已经不在这批结果里：整批推送，不翻页\n  if (cursorIndex === -1) return videos.slice();\n\n  // 进度那条已经发过，只取排在它前面的视频\n  return videos.slice(0, cursorIndex);\n}\n\nfunction toVideo(item) {\n  const json = item?.json;\n  if (!json || typeof json !== 'object') return null;\n\n  const snippet = json.snippet ?? {};\n  const videoId = json.contentDetails?.videoId || snippet.resourceId?.videoId || '';\n  if (!videoId) return null;\n\n  const thumbnails = snippet.thumbnails ?? {};\n  const thumbnail = ['maxres', 'standard', 'high', 'medium', 'default']\n    .map((size) => thumbnails[size]?.url)\n    .find((url) => typeof url === 'string' && url) ?? '';\n  const title = snippet.title ?? '';\n  const message = [\n    `▶️ ${escapeHtml(title)} #video #youtube`,\n    `https://www.youtube.com/watch?v=${videoId}`,\n  ].join('\\n\\n');\n\n  return {\n    json: {\n      videoId,\n      title,\n      channelTitle: snippet.videoOwnerChannelTitle || '',\n      url: `https://www.youtube.com/watch?v=${videoId}`,\n      thumbnail,\n      likedAt: snippet.publishedAt ?? '',\n      message,\n    },\n    pairedItem: item.pairedItem,\n  };\n}\n\nfunction escapeHtml(value) {\n  return String(value)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "7d707e85-7742-47ea-b877-62494bdbba21",
+      "name": "Process"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        32,
+        0
+      ],
+      "id": "9aa63182-06c5-4647-b038-1a88664d0bc9",
+      "name": "Schedule"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Test": {
+      "main": [
+        [
+          {
+            "node": "Get list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get list": {
+      "main": [
+        [
+          {
+            "node": "Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "cZNTVyM162Ph1rp5",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "2d6a854c-b78d-4df8-b5dd-78e52b0bbda5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "25193dc7322b69a268cb3a5e74f6c08da8936804e1ad34544dbbd72d5f030444"
+  },
+  "nodeGroups": [],
+  "id": "Z6Y20ULC83eQGyia",
+  "tags": []
+}

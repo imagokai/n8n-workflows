@@ -25,7 +25,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const TYPES = {\n  movie: { linkIncludes: 'movie.douban.com',     icon: '🎬', tag: '#movie' },\n  book:  { linkIncludes: 'book.douban.com',      icon: '📖', tag: '#book' },\n  game:  { linkIncludes: 'www.douban.com/game/', icon: '🎮', tag: '#game' },\n};\nconst TITLE_RE = /^(?:最近)?(在看|看过|在读|读过|在玩|玩过)(.+)$/;\nconst SCORE_BY_RATING = { 很差: 1, 较差: 2, 还行: 3, 推荐: 4, 力荐: 5 };\n\nconst decodeHtml = (s) => s\n  .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\")\n  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\nconst escapeHtml = (s) => s\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst results = [];\n\nfor (const [index, item] of $input.all().entries()) {\n  const { title = '', link = '', content = '' } = item.json;\n\n  const type = Object.keys(TYPES).find((k) => link.includes(TYPES[k].linkIncludes));\n  if (!type) continue;\n  const typeInfo = TYPES[type];\n\n  const [, status, rawName] = title.match(TITLE_RE) ?? [];\n  if (!status) continue;\n  const name = rawName.trim();\n\n  const ratingText = content.match(/<p>推荐:\\s*([^<]+?)\\s*<\\/p>/)?.[1];\n  const score = SCORE_BY_RATING[ratingText] ?? 0;\n  const comment = decodeHtml(content.match(/<p>备注:\\s*([\\s\\S]*?)\\s*<\\/p>/)?.[1] ?? '').trim();\n  const cover = content.match(/<img src=\"([^\"]+)\"/)?.[1]\n    ?.replace('/photo/s_ratio_poster/', '/photo/m_ratio_poster/')\n    .replace('/subject/s/', '/subject/m/')\n    .replace(/\\/[sml]pic\\/(s\\d+\\.jpg)/, '/view/subject/m/public/$1') ?? '';\n\n  const header = `${typeInfo.icon} ${escapeHtml(status + name)} ${typeInfo.tag} #douban`;\n  const review = [\n    score ? `评分：${'★'.repeat(score)}${'☆'.repeat(5 - score)}` : '',\n    escapeHtml(comment),\n  ].filter(Boolean).join('\\n');\n  const message = [header, review, link].filter(Boolean).join('\\n\\n');\n\n  results.push({\n    json: { type, status, name, score, ratingText, comment, link, cover, message },\n    pairedItem: { item: index },\n  });\n}\n\nreturn results.reverse();"
+        "jsCode": "const TYPES = {\n  movie: { linkIncludes: 'movie.douban.com',     icon: '🎬', tag: '#movie' },\n  book:  { linkIncludes: 'book.douban.com',      icon: '📚', tag: '#book' },\n  game:  { linkIncludes: 'www.douban.com/game/', icon: '🎮', tag: '#game' },\n};\nconst TITLE_RE = /^(?:最近)?(在看|看过|在读|读过|在玩|玩过)(.+)$/;\nconst SCORE_BY_RATING = { 很差: 1, 较差: 2, 还行: 3, 推荐: 4, 力荐: 5 };\n\nconst decodeHtml = (s) => s\n  .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\")\n  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\nconst escapeHtml = (s) => s\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst results = [];\n\nfor (const [index, item] of $input.all().entries()) {\n  const { title = '', link = '', content = '' } = item.json;\n\n  const type = Object.keys(TYPES).find((k) => link.includes(TYPES[k].linkIncludes));\n  if (!type) continue;\n  const typeInfo = TYPES[type];\n\n  const [, status, rawName] = title.match(TITLE_RE) ?? [];\n  if (!status) continue;\n  const name = rawName.trim();\n\n  const ratingText = content.match(/<p>推荐:\\s*([^<]+?)\\s*<\\/p>/)?.[1];\n  const score = SCORE_BY_RATING[ratingText] ?? 0;\n  const comment = decodeHtml(content.match(/<p>备注:\\s*([\\s\\S]*?)\\s*<\\/p>/)?.[1] ?? '').trim();\n  const cover = content.match(/<img src=\"([^\"]+)\"/)?.[1]\n    ?.replace('/photo/s_ratio_poster/', '/photo/m_ratio_poster/')\n    .replace('/subject/s/', '/subject/m/')\n    .replace(/\\/[sml]pic\\/(s\\d+\\.jpg)/, '/view/subject/m/public/$1') ?? '';\n\n  const header = `${typeInfo.icon} ${escapeHtml(status + name)} ${typeInfo.tag} #douban`;\n  const review = [\n    score ? `评分：${'★'.repeat(score)}${'☆'.repeat(5 - score)}` : '',\n    escapeHtml(comment),\n  ].filter(Boolean).join('\\n');\n  const message = [header, review, link].filter(Boolean).join('\\n\\n');\n\n  results.push({\n    json: { type, status, name, score, ratingText, comment, link, cover, message },\n    pairedItem: { item: index },\n  });\n}\n\nreturn results.reverse();"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -115,8 +115,8 @@
       "webhookId": "aeac7728-de3b-4c08-b90c-10554b1f9c8b",
       "credentials": {
         "telegramApi": {
-          "id": "__WF_TELEGRAM_PUSH_CREDENTIAL_ID__",
-          "name": "push_bot"
+          "id": "__WF_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram bot"
         }
       },
       "retryOnFail": true,
@@ -143,8 +143,8 @@
       "webhookId": "40645fe1-349c-416c-a70e-4876ea8df9d8",
       "credentials": {
         "telegramApi": {
-          "id": "__WF_TELEGRAM_PUSH_CREDENTIAL_ID__",
-          "name": "push_bot"
+          "id": "__WF_TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram bot"
         }
       },
       "retryOnFail": true,
